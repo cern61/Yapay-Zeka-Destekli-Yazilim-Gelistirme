@@ -9,15 +9,17 @@
 
 | Üye | Sorumluluk Alanı |
 |-----|------------------|
-| İpek Hellaçoğlu |  |
-| Ahmet Yasin Geldi |  |
-| Ceren Naz Dervişoğlu |  |
-| Yusuf Ali Başer |  |
-| Yunus Emre Bulut |  |
+| İpek Hellaçoğlu | Backend |
+| Ahmet Yasin Geldi | Database |
+| Ceren Naz Dervişoğlu | Backend |
+| Yusuf Ali Başer | Test |
+| Yunus Emre Bulut | Frontend |
 
 ---
 
 ## 🎯 Genel Bakış
+
+
 
 
 
@@ -27,12 +29,12 @@
 
 | Katman | Teknoloji |
 |--------|-----------|
-| Ön yüz (Frontend) | |
-| Arka yüz (Backend) | |
-| Veritabanı |  |
-| Test |  |
-| Kod kalitesi | [SonarQube / CodeClimate] |
+| Ön yüz (Frontend) | JavaScript |
+| Arka yüz (Backend) | C#|
+| Veritabanı | Supabase |
+| Kod kalitesi | SonarQube |
 | Versiyon kontrol | Git & GitHub |
+| Mimari| Asp.Net |
 
 ---
 
@@ -45,7 +47,7 @@ Bu projede yapay zeka aracı **[ürünün geliştirilmesinde araç olarak / ür�
 
 | Araç | Ne için kullanıldı? | Örnek |
 |------|---------------------|-------|
-| [Örn. Claude] | [Kod yazımı, hata ayıklama, test üretimi, dokümantasyon] | [Örn. Servis katmanı için birim testleri] |
-| [Örn. GitHub Copilot] | [Kod tamamlama] | [...] |
+| Claude | Kod yazımı, hata ayıklama, test üretimi, dokümantasyon, birim testleri|
+
 
 ---
