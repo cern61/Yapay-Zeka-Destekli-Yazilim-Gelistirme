@@ -1,0 +1,75 @@
+// Mavi Takım - Twitter Klonu veritabanı şeması
+// CHECK kısıtları ve kısmi indeksler DBML'de tam ifade edilemediği için notlarda yazılıdır.
+
+Project mavi_twitter_clone {
+  database_type: 'PostgreSQL'
+  Note: '''
+  Kararlar:
+  - Şemanın tek kaynağı schema.sql; EF Core tablo yaratmaz, sadece eşler.
+  - ID'ler UUID (gen_random_uuid()).
+  - Akış: fan-out on read (takip edilenlerin tweetleri sorgu anında toplanır).
+  - Tweetler soft delete: deleted_at dolar, content NULL yapılır.
+  - Sayaçlar (beğeni, yanıt, takipçi) saklanmaz, COUNT ile hesaplanır.
+  - Sayfalama cursor ile: (created_at, id) çiftine göre.
+  - Tüm tablolarda RLS açık ve politika yok: Supabase REST API'si veriye erişemez.
+  '''
+}
+
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`]
+  username citext [not null, unique, note: 'Harf duyarsız benzersiz. CHECK: ^[A-Za-z0-9_]{3,15}$']
+  display_name varchar(50) [not null, note: 'CHECK: boşluklar atıldıktan sonra 1-50 karakter']
+  email citext [not null, unique, note: 'Harf duyarsız benzersiz. CHECK: en fazla 254 karakter, basit e-posta biçimi']
+  password_hash text [not null, note: 'BCrypt hash; düz şifre asla saklanmaz']
+  bio varchar(160)
+  location varchar(30)
+  website varchar(100) [note: "CHECK: 'http://' veya 'https://' ile başlar"]
+  avatar_url varchar(500) [note: "CHECK: 'http://' veya 'https://' ile başlar"]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`, note: 'Trigger ile her UPDATE\'te otomatik güncellenir']
+}
+
+Table tweets {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  parent_id uuid [note: 'Doluysa yanıttır. Yanıta da yanıt verilebilir. CHECK: parent_id <> id']
+  content varchar(280) [note: 'CHECK: silinmemişse dolu ve boşluk hariç 1-280 karakter; silinmişse NULL']
+  created_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz [note: 'Soft delete: doluysa tweet silinmiştir']
+
+  indexes {
+    (created_at, id) [name: 'ix_tweets_live_created', note: 'Genel akış + cursor. DESC sıralı, kısmi: WHERE deleted_at IS NULL']
+    (user_id, created_at, id) [name: 'ix_tweets_user_created', note: 'Profil ve takip akışı. DESC sıralı']
+    (parent_id, created_at) [name: 'ix_tweets_parent_created', note: 'Yanıt listesi ve yanıt sayısı']
+  }
+}
+
+Table likes {
+  user_id uuid [not null]
+  tweet_id uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, tweet_id) [pk, note: 'Aynı tweet iki kez beğenilemez']
+    tweet_id [name: 'ix_likes_tweet', note: 'Beğeni sayısı']
+  }
+}
+
+Table follows {
+  follower_id uuid [not null, note: 'Takip eden']
+  following_id uuid [not null, note: 'Takip edilen']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (follower_id, following_id) [pk, note: 'Aynı kişi iki kez takip edilemez. CHECK: follower_id <> following_id']
+    following_id [name: 'ix_follows_following', note: 'Takipçi sayısı ve listesi']
+  }
+}
+
+// İlişkiler: kayıt fiziksel olarak silinirse bağlı kayıtlar da silinir
+Ref: tweets.user_id > users.id [delete: cascade]
+Ref: tweets.parent_id > tweets.id [delete: cascade]
+Ref: likes.user_id > users.id [delete: cascade]
+Ref: likes.tweet_id > tweets.id [delete: cascade]
+Ref: follows.follower_id > users.id [delete: cascade]
+Ref: follows.following_id > users.id [delete: cascade]
