@@ -1,7 +1,7 @@
 # YAPAY ZEKA DESTEKLİ YAZILIM GELİŞTİRME
 
----
 **Ders:** Yapay Zeka Destekli Yazılım Geliştirme
+
 **Takım:** Mavi Takım
 
 ## 👥 Mavi Takım Üyeleri
@@ -64,10 +64,11 @@ Backend/
 ├── Program.cs   # DI, JWT, CORS, hata yönetimi ve endpoint kaydı
 └── appsettings.json
 ```
+<img src="images/api.png" alt="Backend Api" width="600" height="400">
 
-### Modüller ve sorumluluklar
+### Modüller ve Sorumluluklar
 
-| Modül | Sorumluluk |
+| Modül | Görev |
 |-------|------------|
 | Authentication | Kayıt/giriş, BCrypt parola hash'leme ve JWT üretimi |
 | Users | Profil görüntüleme/güncelleme, tweet listesi ve takip ilişkileri |
@@ -77,7 +78,7 @@ Backend/
 
 EF Core, Npgsql üzerinden Supabase PostgreSQL'e bağlanır. `UseSnakeCaseNamingConvention()` ve `citext` eşlemeleri mevcut veritabanı şemasına uyum sağlar. Tablolar [`database/schema.sql`](database/schema.sql) ile yönetilir; backend migration çalıştırmaz veya otomatik tablo oluşturmaz. Akışlar `(created_at, id)` cursor sıralamasıyla 20 kayıtlık sayfalar döndürür.
 
-### Backend'i çalıştırma
+### Backend'i Çalıştırma
 
 Gereksinimler: **.NET 8 SDK**, Supabase PostgreSQL bağlantısı ve önceden uygulanmış veritabanı şeması. Önce Supabase SQL Editor'de [`database/schema.sql`](database/schema.sql) dosyasını çalıştırın. PowerShell'de depo kök klasöründen:
 
