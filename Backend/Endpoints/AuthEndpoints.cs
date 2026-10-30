@@ -54,7 +54,30 @@ public static partial class AuthEndpoints
         {
             return Results.ValidationProblem(errors);
         }
+var usernameExists = await db.Users.AnyAsync(
+    u => u.Username == username,
+    cancellationToken);
 
+if (usernameExists)
+{
+    return Results.ValidationProblem(
+        new Dictionary<string, string[]>
+        {
+            ["username"] = ["Bu kullanıcı adı zaten kullanılıyor."]
+        });
+}
+var emailExists = await db.Users.AnyAsync(
+    u => u.Email == email,
+    cancellationToken);
+
+if (emailExists)
+{
+    return Results.ValidationProblem(
+        new Dictionary<string, string[]>
+        {
+            ["email"] = ["Bu e-posta adresi zaten kullanılıyor."]
+        });
+}
         var user = new User
         {
             Username = username!,
