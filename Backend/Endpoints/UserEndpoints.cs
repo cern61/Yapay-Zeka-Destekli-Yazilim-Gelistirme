@@ -47,11 +47,11 @@ public static class UserEndpoints
         }
         ValidateOptionalUrl(request.Website, "website", 100, errors);
         ValidateOptionalUrl(request.AvatarUrl, "avatarUrl", 500, errors);
-        if (request.Bio?.Length > 160)
+        if (NormalizeOptional(request.Bio)?.Length > 160)
         {
             errors["bio"] = ["Biyografi en fazla 160 karakter olabilir."];
         }
-        if (request.Location?.Length > 30)
+        if (NormalizeOptional(request.Location)?.Length > 30)
         {
             errors["location"] = ["Konum en fazla 30 karakter olabilir."];
         }
