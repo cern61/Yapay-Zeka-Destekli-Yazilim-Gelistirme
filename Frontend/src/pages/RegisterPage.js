@@ -82,7 +82,7 @@ export function renderRegisterPage() {
 
         </form>
 
-        <p id="login-message" class="auth-message"
+        <p id="register-message" class="auth-message"
    role="status" aria-live="polite"></p>
 
         <p class="auth-switch">

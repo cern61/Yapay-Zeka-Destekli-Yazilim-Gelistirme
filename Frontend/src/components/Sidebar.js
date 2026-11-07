@@ -11,7 +11,7 @@ export function renderSidebar() {
         <a href="#" class="nav-item">Bildirimler</a>
         <a href="#" class="nav-item">Mesajlar</a>
         <a href="#" class="nav-item">Yer İşaretleri</a>
-        <a href="#" class="nav-item">Profil</a>
+        <a href="#profile" class="nav-item">Profil</a>
       </nav>
 
       <button class="post-button" type="button">
