@@ -107,7 +107,10 @@ function renderApp() {
       app.innerHTML = renderRegisterPage();
       bindRegisterForm();
       break;
-
+    case '#profile':
+       app.innerHTML = renderProfilePage();
+      break;
+      
     default:
       app.innerHTML = renderHomePage();
       break;
