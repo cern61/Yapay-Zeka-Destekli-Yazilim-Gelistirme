@@ -1,23 +1,12 @@
+import { renderSidebar } from '../components/Sidebar.js';
+import { renderTweetComposer } from '../components/TweetComposer.js';
 import { renderTweetCard } from '../components/TweetCard.js';
 export function renderHomePage() {
     return `
     <div class="app-layout">
 
       <!-- SOL MENÜ -->
-      <aside class="sidebar">
-        <div class="logo">X</div>
-
-        <nav class="navigation">
-          <a href="#" class="nav-item active">Ana Sayfa</a>
-          <a href="#" class="nav-item">Keşfet</a>
-          <a href="#" class="nav-item">Bildirimler</a>
-          <a href="#" class="nav-item">Mesajlar</a>
-          <a href="#" class="nav-item">Yer İşaretleri</a>
-          <a href="#" class="nav-item">Profil</a>
-        </nav>
-
-        <button class="post-button">Gönderi Oluştur</button>
-      </aside>
+      ${renderSidebar()}
 
       <!-- ORTA ALAN -->
       <main class="feed">
@@ -27,20 +16,7 @@ export function renderHomePage() {
         </header>
 
         <!-- GÖNDERİ OLUŞTURMA -->
-        <section class="tweet-composer">
-          <textarea
-            placeholder="Neler oluyor?"
-            aria-label="Gönderi metni"
-          ></textarea>
-
-          <div class="composer-actions">
-            <button type="button">Medya</button>
-            <button type="button">Anket</button>
-            <button type="button" class="share-button">
-              Paylaş
-            </button>
-          </div>
-        </section>
+        ${renderTweetComposer()}
 
         <!-- GÖNDERİ AKIŞI -->
         <section class="tweet-feed">
