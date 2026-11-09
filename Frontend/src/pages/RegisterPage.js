@@ -39,8 +39,8 @@ export function renderRegisterPage() {
               placeholder="kullanici_adi"
               minlength="3"
               maxlength="15"
-              pattern="[a-z0-9_]{3,15}"
-              title="3-15 karakter, küçük harf, rakam ve alt çizgi kullanın."
+              pattern="[A-Za-z0-9_]{3,15}"
+              title="3-15 karakter; harf, rakam ve alt çizgi kullanabilirsiniz."
               autocomplete="username"
               required
             />

@@ -24,6 +24,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<SupabaseStorageService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>

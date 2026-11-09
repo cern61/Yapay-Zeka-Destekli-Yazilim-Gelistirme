@@ -38,11 +38,12 @@ async function sendAuthRequest(endpoint, payload) {
     );
   }
 
-  if (!data?.token) {
-    throw new Error('API yanıtında JWT token bulunamadı.');
+  if (!data?.accessToken) {
+    throw Error('API yanıtında accessToken bulunamadı.');
   }
 
-  sessionStorage.setItem('authToken', data.token);
+  sessionStorage.setItem('authToken', data.accessToken);
+  sessionStorage.setItem('authUser', JSON.stringify(data.user));
 
   return data;
 }

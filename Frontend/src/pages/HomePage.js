@@ -1,8 +1,8 @@
 import { renderSidebar } from '../components/Sidebar.js';
 import { renderTweetComposer } from '../components/TweetComposer.js';
-import { renderTweetCard } from '../components/TweetCard.js';
+
 export function renderHomePage() {
-    return `
+  return `
     <div class="app-layout">
 
       <!-- SOL MENÜ -->
@@ -21,13 +21,9 @@ export function renderHomePage() {
         <!-- GÖNDERİ AKIŞI -->
         <section class="tweet-feed">
 
-        
-            ${renderTweetCard({
-        displayName: 'Yunus',
-        username: '@yunus',
-        avatar: 'Y',
-        content: 'Yapay zeka destekli sosyal medya projemizin frontend geliştirmelerine başladık.'
-    })}
+            <p class="feed-status">
+    Gönderiler yükleniyor...
+  </p>
           
 
         </section>

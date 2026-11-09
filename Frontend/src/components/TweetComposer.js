@@ -12,9 +12,15 @@ export function renderTweetComposer() {
 
       <div class="composer-actions">
 
+        <span id="tweet-counter" class="tweet-counter">
+          0/280
+        </span>
+
         <button
           type="button"
+          id="share-tweet"
           class="share-button"
+          disabled
         >
           Paylaş
         </button>
