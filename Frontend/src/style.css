@@ -927,3 +927,22 @@ button {
     object-fit: cover;
     border-radius: 50%;
 }
+
+/* Beğeni kalbi */
+.tweet-actions button[data-action="like"] {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tweet-actions button[data-action="like"] .like-icon {
+    font-size: 30px;
+    line-height: 1;
+    color: #71767b;
+    transition: transform 0.2s, color 0.2s;
+}
+
+.tweet-actions button[data-action="like"].is-liked .like-icon {
+    color: #f91880;
+    transform: scale(1.15);
+}

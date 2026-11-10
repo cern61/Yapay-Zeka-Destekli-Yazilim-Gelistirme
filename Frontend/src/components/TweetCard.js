@@ -15,14 +15,25 @@ function escapeHTML(value) {
 
 export function renderTweetCard(tweet = {}) {
   const {
+    id = '',
     displayName = 'Yunus',
     username = '@yunus',
     avatar = 'Y',
-    content = ''
+    content = '',
+    likeCount = 0,
+    replyCount = 0,
+    isLiked = false,
+    isOwner = false
   } = tweet;
 
+  const safeLikeCount = Math.max(0, Number(likeCount) || 0);
+  const safeReplyCount = Math.max(0, Number(replyCount) || 0);
+
   return `
-    <article class="tweet-card">
+    <article
+      class="tweet-card"
+      data-tweet-id="${escapeHTML(id)}"
+    >
 
       <div class="tweet-user">
         <div class="avatar">${escapeHTML(avatar)}</div>
@@ -35,19 +46,27 @@ export function renderTweetCard(tweet = {}) {
 
       <p>${escapeHTML(content)}</p>
 
-      <div class="tweet-actions">
+      
+
+            <div class="tweet-actions">
 
         <button type="button" data-action="reply">
           Yanıtla
+          <span class="reply-count">${safeReplyCount}</span>
         </button>
 
         <button
           type="button"
           data-action="like"
-          aria-pressed="false"
+          class="${isLiked ? 'is-liked' : ''}"
+          aria-pressed="${Boolean(isLiked)}"
+          aria-label="${isLiked ? 'Beğeniyi kaldır' : 'Beğen'}"
         >
-          Beğen <span class="like-count">0</span>
+          <span class="like-icon" aria-hidden="true">${isLiked ? '♥' : '♡'}</span>
+          <span class="like-count">${safeLikeCount}</span>
         </button>
+
+        ${isOwner ? '<button type="button" data-action="delete" aria-label="Gönderiyi sil">Sil</button>' : ''}
 
         <button type="button" data-action="share">
           Paylaş

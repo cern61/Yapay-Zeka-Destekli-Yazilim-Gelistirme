@@ -7,13 +7,13 @@ import { renderRegisterPage } from './pages/RegisterPage.js';
 import { renderTweetCard } from './components/TweetCard.js';
 import { getPublicFeed } from './services/feedService.js';
 import {
-  getUserProfile,
-  getUserTweets,
-  updateMyProfile,
-  uploadAvatar
-} from './services/profileService.js';
+  createTweet,
+  likeTweet,
+  unlikeTweet,
+  getTweetReplies,
+  deleteTweet
+} from './services/tweetService.js';
 
-import { createTweet } from './services/tweetService.js';
 
 import {
   loginUser,
@@ -167,12 +167,17 @@ function bindTweetComposer() {
   updateComposer();
 }
 
+
 function bindTweetInteractions() {
   if (!app) return;
 
-  // Beğenme ve yanıt alanını açma
-  app.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-action]');
+  // Beğeni ve yanıt alanını açma
+  app.addEventListener('click', async (event) => {
+    const target = event.target;
+
+    if (!(target instanceof Element)) return;
+
+    const button = target.closest('button[data-action]');
 
     if (!button) return;
 
@@ -180,34 +185,175 @@ function bindTweetInteractions() {
 
     if (!card) return;
 
+    // GERÇEK API ÜZERİNDEN GÖNDERİ SİLME
+    if (button.dataset.action === 'delete') {
+      const tweetId = card.dataset.tweetId;
+
+      if (!tweetId) {
+        alert('Gönderi ID bulunamadı.');
+        return;
+      }
+
+      const confirmed = confirm(
+        'Bu gönderiyi silmek istediğine emin misin?'
+      );
+
+      if (!confirmed) return;
+
+      button.disabled = true;
+
+      try {
+        await deleteTweet(tweetId);
+        card.remove();
+
+      } catch (error) {
+        alert(error.message);
+
+      } finally {
+        if (button.isConnected) {
+          button.disabled = false;
+        }
+      }
+
+      return;
+    }
+
+    // GERÇEK API İLE BEĞENME / BEĞENİYİ KALDIRMA
     if (button.dataset.action === 'like') {
+      const tweetId = card.dataset.tweetId;
       const liked = button.getAttribute('aria-pressed') === 'true';
       const counter = button.querySelector('.like-count');
 
-      const currentCount = Number(counter.textContent);
+      if (!tweetId || !counter) {
+        alert('Gönderi bilgileri bulunamadı.');
+        return;
+      }
 
-      button.setAttribute('aria-pressed', String(!liked));
-      counter.textContent = String(
-        Math.max(0, currentCount + (liked ? -1 : 1))
-      );
+      const currentCount = Number(counter.textContent) || 0;
 
-      button.classList.toggle('is-liked', !liked);
+      // Tekrarlanan istekleri engelle
+      if (button.disabled) return;
+
+      button.disabled = true;
+
+      try {
+        if (liked) {
+          await unlikeTweet(tweetId);
+        } else {
+          await likeTweet(tweetId);
+        }
+
+        const newLiked = !liked;
+
+        // API başarılı olduktan sonra arayüzü güncelle
+        button.setAttribute('aria-pressed', String(newLiked));
+
+        counter.textContent = String(
+          Math.max(0, currentCount + (newLiked ? 1 : -1))
+        );
+
+        button.classList.toggle('is-liked', newLiked);
+
+        const likeIcon = button.querySelector('.like-icon');
+
+        if (likeIcon) {
+          likeIcon.textContent = newLiked ? '♥' : '♡';
+        }
+
+        button.setAttribute(
+          'aria-label',
+          newLiked ? 'Beğeniyi kaldır' : 'Beğen'
+        );
+
+      } catch (error) {
+        alert(error.message);
+
+      } finally {
+        if (button.isConnected) {
+          button.disabled = false;
+        }
+      }
     }
 
+
+    // YANIT FORMUNU AÇ / KAPAT VE API'DEN YANITLARI GETİR
     if (button.dataset.action === 'reply') {
       const form = card.querySelector('.reply-composer');
+      const repliesContainer = card.querySelector('.tweet-replies');
+
+      if (!form || !repliesContainer) return;
 
       form.hidden = !form.hidden;
 
-      if (!form.hidden) {
-        form.querySelector('textarea').focus();
+      if (form.hidden) return;
+
+      form.querySelector('textarea')?.focus();
+
+      // Yanıtlar daha önce yüklendiyse tekrar istek gönderme
+      if (repliesContainer.dataset.loaded === 'true') return;
+
+      const tweetId = card.dataset.tweetId;
+
+      if (!tweetId) {
+        repliesContainer.textContent = 'Gönderi ID bulunamadı.';
+        return;
+      }
+
+      repliesContainer.textContent = 'Yanıtlar yükleniyor...';
+
+      try {
+        const page = await getTweetReplies(tweetId);
+
+        if (!card.isConnected) return;
+
+        const replies = page.items.filter(reply =>
+          !reply.isDeleted &&
+          typeof reply.content === 'string' &&
+          reply.content.trim().length > 0
+        );
+
+        repliesContainer.replaceChildren();
+
+        if (replies.length === 0) {
+          repliesContainer.textContent = 'Henüz yanıt bulunmuyor.';
+        } else {
+          replies.forEach(reply => {
+            const item = document.createElement('div');
+            item.className = 'tweet-reply';
+
+            const author = reply.author ?? {};
+
+            const authorName = document.createElement('strong');
+            authorName.textContent = author.displayName || 'Kullanıcı';
+
+            const username = document.createElement('span');
+            username.textContent =
+              ` @${(author.username || 'kullanici').replace(/^@/, '')}`;
+
+            const content = document.createElement('p');
+            content.textContent = reply.content;
+
+            item.append(authorName, username, content);
+            repliesContainer.appendChild(item);
+          });
+        }
+
+        repliesContainer.dataset.loaded = 'true';
+
+      } catch (error) {
+        repliesContainer.textContent =
+          `Yanıtlar yüklenemedi: ${error.message}`;
       }
     }
   });
 
-  // Yanıt karakter sayacı
+  // YANIT KARAKTER SAYACI
   app.addEventListener('input', (event) => {
-    const textarea = event.target.closest('.reply-composer textarea');
+    const target = event.target;
+
+    if (!(target instanceof Element)) return;
+
+    const textarea = target.closest('.reply-composer textarea');
 
     if (!textarea) return;
 
@@ -216,12 +362,19 @@ function bindTweetInteractions() {
     const button = form.querySelector('button[type="submit"]');
 
     counter.textContent = `${textarea.value.length}/280`;
-    button.disabled = textarea.value.trim().length === 0;
+
+    button.disabled =
+      textarea.value.trim().length === 0 ||
+      textarea.value.length > 280;
   });
 
-  // Yanıt gönderme (şimdilik yerel)
-  app.addEventListener('submit', (event) => {
-    const form = event.target.closest('.reply-composer');
+  // GERÇEK API ÜZERİNDEN YANIT GÖNDERME
+  app.addEventListener('submit', async (event) => {
+    const target = event.target;
+
+    if (!(target instanceof HTMLFormElement)) return;
+
+    const form = target.closest('.reply-composer');
 
     if (!form) return;
 
@@ -229,25 +382,96 @@ function bindTweetInteractions() {
 
     const textarea = form.querySelector('textarea');
     const content = textarea.value.trim();
-
-    if (!content) return;
-
     const card = form.closest('.tweet-card');
-    const replies = card.querySelector('.tweet-replies');
+    const tweetId = card?.dataset.tweetId;
+    const repliesContainer = card?.querySelector('.tweet-replies');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const counter = form.querySelector('.reply-counter');
 
-    const reply = document.createElement('p');
+    if (!content || !tweetId || !repliesContainer) return;
+    if (submitButton.disabled) return;
 
-    reply.className = 'tweet-reply';
-    reply.textContent = content;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Gönderiliyor...';
 
-    replies.appendChild(reply);
+    try {
+      // Yanıtı ana gönderinin ID'si ile API'ye gönder
+      await createTweet(content, tweetId);
 
-    textarea.value = '';
-    form.querySelector('.reply-counter').textContent = '0/280';
-    form.querySelector('button[type="submit"]').disabled = true;
+      // Formu temizle
+      textarea.value = '';
+      counter.textContent = '0/280';
+      form.hidden = true;
 
-    form.hidden = true;
+      // Yanıt sayısını artır
+      const replyCount = card.querySelector('.reply-count');
+
+      if (replyCount) {
+        replyCount.textContent = String(
+          (Number(replyCount.textContent) || 0) + 1
+        );
+      }
+
+      // Eski yanıt listesini geçersiz kıl
+      delete repliesContainer.dataset.loaded;
+
+      // Yanıtları yeniden API'den getir
+      try {
+        const page = await getTweetReplies(tweetId);
+
+        if (!card.isConnected) return;
+
+        repliesContainer.replaceChildren();
+
+        if (page.items.length === 0) {
+          repliesContainer.textContent = 'Henüz yanıt bulunmuyor.';
+        } else {
+          page.items
+            .filter(reply =>
+              !reply.isDeleted &&
+              typeof reply.content === 'string' &&
+              reply.content.trim().length > 0
+            )
+            .forEach(reply => {
+              const item = document.createElement('div');
+              item.className = 'tweet-reply';
+
+              const author = reply.author ?? {};
+
+              const authorName = document.createElement('strong');
+              authorName.textContent = author.displayName || 'Kullanıcı';
+
+              const username = document.createElement('span');
+              username.textContent =
+                ` @${(author.username || 'kullanici').replace(/^@/, '')}`;
+
+              const replyContent = document.createElement('p');
+              replyContent.textContent = reply.content;
+
+              item.append(authorName, username, replyContent);
+              repliesContainer.appendChild(item);
+            });
+        }
+
+        repliesContainer.dataset.loaded = 'true';
+
+      } catch (error) {
+        repliesContainer.textContent =
+          `Yanıt kaydedildi ancak liste yenilenemedi: ${error.message}`;
+      }
+
+    } catch (error) {
+      alert(error.message);
+
+    } finally {
+      if (submitButton.isConnected) {
+        submitButton.textContent = 'Yanıtla';
+        submitButton.disabled =
+          textarea.value.trim().length === 0;
+      }
+    }
   });
+
 }
 
 
@@ -265,6 +489,7 @@ async function loadPublicFeed() {
     if (!feed.isConnected) return;
 
     const tweets = page.items.filter(tweet =>
+      tweet.parentId === null &&
       !tweet.isDeleted &&
       typeof tweet.content === 'string' &&
       tweet.content.trim().length > 0
@@ -274,6 +499,10 @@ async function loadPublicFeed() {
       feed.textContent = 'Henüz gönderi bulunmuyor.';
       return;
     }
+
+    const currentUser = JSON.parse(
+      sessionStorage.getItem('authUser') || 'null'
+    );
 
     feed.innerHTML = tweets.map(tweet => {
       const author = tweet.author ?? {};
@@ -293,7 +522,13 @@ async function loadPublicFeed() {
         isLiked: tweet.isLiked,
         parentId: tweet.parentId,
         parentContent: tweet.parentContent,
-        parentDeleted: tweet.parentDeleted
+        parentDeleted: tweet.parentDeleted,
+        isOwner: Boolean(
+          currentUser?.id &&
+          author.id &&
+          String(currentUser.id).toLowerCase() ===
+          String(author.id).toLowerCase()
+        )
       });
     }).join('');
 
@@ -304,9 +539,6 @@ async function loadPublicFeed() {
       `Gönderiler yüklenemedi: ${error.message}`;
   }
 }
-
-
-
 
 async function loadProfile(username) {
   const currentHash = window.location.hash;
