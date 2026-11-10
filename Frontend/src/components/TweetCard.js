@@ -28,6 +28,7 @@ export function renderTweetCard(tweet = {}) {
 
   const safeLikeCount = Math.max(0, Number(likeCount) || 0);
   const safeReplyCount = Math.max(0, Number(replyCount) || 0);
+  const safeUsername = String(username || '@kullanici').trim().replace(/^@/, '') || 'kullanici';
 
   return `
     <article
@@ -36,13 +37,18 @@ export function renderTweetCard(tweet = {}) {
     >
 
       <div class="tweet-user">
-        <div class="avatar">${escapeHTML(avatar)}</div>
+  <div class="avatar">${escapeHTML(avatar)}</div>
 
-        <div>
-          <strong>${escapeHTML(displayName)}</strong>
-          <span>${escapeHTML(username)}</span>
-        </div>
-      </div>
+  <div>
+    <strong>${escapeHTML(displayName)}</strong>
+    <span>
+      <a
+        class="tweet-profile-link"
+        href="#profile/${encodeURIComponent(safeUsername)}"
+      >@${escapeHTML(safeUsername)}</a>
+    </span>
+  </div>
+</div>
 
       <p>${escapeHTML(content)}</p>
 

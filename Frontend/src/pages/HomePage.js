@@ -22,12 +22,20 @@ export function renderHomePage() {
         <section class="tweet-feed">
 
             <p class="feed-status">
-    Gönderiler yükleniyor...
-  </p>
+              Gönderiler yükleniyor...
+            </p>
           
 
         </section>
 
+      <button
+  type="button"
+  id="load-more-tweets"
+  class="load-more-button"
+  hidden
+>
+  Daha Fazla Gönderi Yükle
+</button>  
       </main>
 
       <!-- SAĞ PANEL -->

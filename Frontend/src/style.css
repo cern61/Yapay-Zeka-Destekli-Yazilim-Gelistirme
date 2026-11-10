@@ -946,3 +946,125 @@ button {
     color: #f91880;
     transform: scale(1.15);
 }
+
+/* Takip Et / Takibi Bırak butonu */
+#follow-user-button {
+  padding: 9px 20px;
+  border: 1px solid #1d9bf0;
+  border-radius: 20px;
+  background-color: #1d9bf0;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#follow-user-button:hover {
+  background-color: #1a8cd8;
+  border-color: #1a8cd8;
+}
+
+#follow-user-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+/* Takipçi ve takip edilen sayı butonları */
+.profile-stat-button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #71767b;
+  font: inherit;
+  cursor: pointer;
+}
+
+.profile-stat-button strong {
+  color: #e7e9ea;
+  font-weight: 700;
+}
+
+.profile-stat-button:hover {
+  color: #1d9bf0;
+}
+
+.profile-stat-button:hover strong {
+  color: #1d9bf0;
+}
+/* Takipçi / takip edilen listesi */
+.profile-relations {
+  padding: 16px 20px;
+  border-top: 1px solid #2f3336;
+  border-bottom: 1px solid #2f3336;
+}
+
+.profile-relations h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  color: #e7e9ea;
+}
+
+.profile-relation-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.profile-relation-list li {
+  border-bottom: 1px solid #2f3336;
+}
+
+.profile-relation-list li:last-child {
+  border-bottom: none;
+}
+
+.profile-relation-list a {
+  display: block;
+  padding: 12px 8px;
+  color: #e7e9ea;
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.profile-relation-list a:hover {
+  background: #16181c;
+  color: #1d9bf0;
+}
+
+.profile-relations p {
+  color: #71767b;
+}
+/* Daha Fazla Gönderi Yükle */
+.load-more-button {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  margin: 0;
+  border: none;
+  border-top: 1px solid #2f3336;
+  background: #000;
+  color: #1d9bf0;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.load-more-button:hover {
+  background: #16181c;
+}
+
+.load-more-button:disabled {
+  color: #71767b;
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.load-more-button[hidden] {
+  display: none;
+}

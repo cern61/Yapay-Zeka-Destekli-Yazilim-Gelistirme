@@ -59,7 +59,7 @@ export function renderProfilePage(profile = {}) {
     <section class="profile-page">
 
       <header class="profile-header">
-        <a href="#" class="profile-back">←</a>
+        <a href="#home" class="profile-back">←</a>
         <h1>Profil</h1>
       </header>
 
@@ -72,10 +72,23 @@ export function renderProfilePage(profile = {}) {
         </div>
 
         <div class="profile-actions">
-          <button type="button" id="edit-profile-button">
-            Profili Düzenle
-          </button>
-        </div>
+  ${profile.isOwnProfile
+      ? `
+      <button type="button" id="edit-profile-button">
+        Profili Düzenle
+      </button>
+    `
+      : `
+      <button
+        type="button"
+        id="follow-user-button"
+        data-following="${Boolean(profile.isFollowing)}"
+      >
+        ${profile.isFollowing ? 'Takibi Bırak' : 'Takip Et'}
+      </button>
+    `
+    }
+</div>
 
         <h2>${escapeHTML(displayName)}</h2>
 
@@ -95,19 +108,36 @@ export function renderProfilePage(profile = {}) {
 
         ${websiteHTML}
 
-        <div class="profile-stats">
-          <span>
-            <strong>${tweetCount}</strong> Gönderi
-          </span>
+        
+<div class="profile-stats">
+  <span>
+    <strong>${tweetCount}</strong> Gönderi
+  </span>
 
-          <span>
-            <strong>${followingCount}</strong> Takip edilen
-          </span>
+  <button
+    type="button"
+    class="profile-stat-button"
+    data-profile-list="following"
+  >
+    <strong>${followingCount}</strong> Takip edilen
+  </button>
 
-          <span>
-            <strong>${followerCount}</strong> Takipçi
-          </span>
-        </div>
+  <button
+    type="button"
+    class="profile-stat-button"
+    data-profile-list="followers"
+  >
+    <strong>${followerCount}</strong> Takipçi
+  </button>
+</div>
+
+<section
+  id="profile-relations"
+  class="profile-relations"
+  hidden
+  aria-live="polite"
+></section>
+
 
       </section>
 
@@ -167,30 +197,18 @@ export function renderProfilePage(profile = {}) {
         </div>
 
                 <div class="form-group">
-          <label for="edit-avatar-file">Profil Fotoğrafı</label>
+  <label for="edit-avatar-file">Profil Fotoğrafı</label>
 
-          <input
-            type="file"
-            id="edit-avatar-file"
-            accept="image/jpeg,image/png,image/webp"
-          >
+  <input
+    type="file"
+    id="edit-avatar-file"
+    accept="image/jpeg,image/png,image/webp"
+  >
 
-          <small>
-            JPEG, PNG veya WebP. Maksimum 4 MB.
-          </small>
-
-          <button
-            type="button"
-            id="upload-avatar-button"
-          >
-            Fotoğrafı Yükle
-          </button>
-
-          <p
-            id="avatar-upload-message"
-            aria-live="polite"
-          ></p>
-        </div>
+  <small>
+    JPEG, PNG veya WebP. Maksimum 4 MB.
+  </small>
+</div>
 
         <div class="profile-edit-actions">
           <button type="submit" id="save-profile-button">
@@ -215,6 +233,19 @@ export function renderProfilePage(profile = {}) {
           Bu kullanıcının gönderileri yükleniyor...
         </p>
       </section>
+
+      <button
+        type="button"
+        id="load-more-profile-tweets"
+        class="load-more-button"
+        hidden
+      >
+        Daha Fazla Gönderi Yükle
+      </button>
+
+    </section>
+      
+      
 
     </section>
   `;

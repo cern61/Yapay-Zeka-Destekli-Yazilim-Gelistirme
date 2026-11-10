@@ -1,11 +1,22 @@
 
 import './style.css';
+
 import { renderProfilePage } from './pages/ProfilePage.js';
 import { renderHomePage } from './pages/HomePage.js';
 import { renderLoginPage } from './pages/LoginPage.js';
 import { renderRegisterPage } from './pages/RegisterPage.js';
 import { renderTweetCard } from './components/TweetCard.js';
-import { getPublicFeed } from './services/feedService.js';
+import { getHomeFeed } from './services/feedService.js';
+import {
+  getUserProfile,
+  getUserTweets,
+  updateMyProfile,
+  uploadAvatar,
+  followUser,
+  unfollowUser,
+  getUserFollowers,
+  getUserFollowing
+} from './services/profileService.js';
 import {
   createTweet,
   likeTweet,
@@ -14,13 +25,15 @@ import {
   deleteTweet
 } from './services/tweetService.js';
 
-
 import {
   loginUser,
   registerUser
 } from './services/authService.js';
 
 const app = document.querySelector('#app');
+let homeFeedCursor = null;
+let isLoadingHomeFeed = false;
+let homeFeedHasMore = true;
 
 // Hata mesajlarını ekranda gösterir.
 function showMessage(elementId, message) {
@@ -54,7 +67,7 @@ function bindLoginForm() {
         password: formData.get('password')
       });
 
-      window.location.hash = '';
+      window.location.hash = '#home';
 
     } catch (error) {
       showMessage('login-message', error.message);
@@ -91,7 +104,7 @@ function bindRegisterForm() {
         password: formData.get('password')
       });
 
-      window.location.hash = '';
+      window.location.hash = '#login';
 
     } catch (error) {
       showMessage('register-message', error.message);
@@ -308,6 +321,7 @@ function bindTweetInteractions() {
 
         const replies = page.items.filter(reply =>
           !reply.isDeleted &&
+          !reply.parentDeleted &&
           typeof reply.content === 'string' &&
           reply.content.trim().length > 0
         );
@@ -429,6 +443,7 @@ function bindTweetInteractions() {
           page.items
             .filter(reply =>
               !reply.isDeleted &&
+              !reply.parentDeleted &&
               typeof reply.content === 'string' &&
               reply.content.trim().length > 0
             )
@@ -476,35 +491,55 @@ function bindTweetInteractions() {
 
 
 // Backend üzerinden gerçek gönderileri yükle
-async function loadPublicFeed() {
+
+async function loadPublicFeed(loadMore = false) {
   const feed = document.querySelector('.tweet-feed');
+  const moreButton = document.querySelector('#load-more-tweets');
 
-  if (!feed) return;
+  if (!feed || isLoadingHomeFeed) return;
 
-  feed.textContent = 'Gönderiler yükleniyor...';
+  if (loadMore && (!homeFeedHasMore || !homeFeedCursor)) return;
+
+  if (!loadMore) {
+    homeFeedCursor = null;
+    homeFeedHasMore = true;
+    feed.textContent = 'Gönderiler yükleniyor...';
+
+    if (moreButton) moreButton.hidden = true;
+  }
+
+  isLoadingHomeFeed = true;
+
+  if (moreButton) {
+    moreButton.disabled = true;
+    moreButton.textContent = 'Yükleniyor...';
+  }
 
   try {
-    const page = await getPublicFeed();
-
-    if (!feed.isConnected) return;
-
-    const tweets = page.items.filter(tweet =>
-      tweet.parentId === null &&
-      !tweet.isDeleted &&
-      typeof tweet.content === 'string' &&
-      tweet.content.trim().length > 0
+    const page = await getHomeFeed(
+      loadMore ? homeFeedCursor : null
     );
 
-    if (tweets.length === 0) {
-      feed.textContent = 'Henüz gönderi bulunmuyor.';
-      return;
-    }
+    if (!feed.isConnected) return;
 
     const currentUser = JSON.parse(
       sessionStorage.getItem('authUser') || 'null'
     );
 
-    feed.innerHTML = tweets.map(tweet => {
+    const existingIds = new Set(
+      [...feed.querySelectorAll('.tweet-card')]
+        .map(card => card.dataset.tweetId)
+    );
+
+    const tweets = page.items.filter(tweet =>
+      tweet.parentId === null &&
+      !tweet.isDeleted &&
+      typeof tweet.content === 'string' &&
+      tweet.content.trim().length > 0 &&
+      !existingIds.has(String(tweet.id))
+    );
+
+    const tweetHTML = tweets.map(tweet => {
       const author = tweet.author ?? {};
       const displayName = author.displayName || 'Kullanıcı';
       const rawUsername = author.username || 'kullanici';
@@ -532,16 +567,57 @@ async function loadPublicFeed() {
       });
     }).join('');
 
+    if (loadMore) {
+      if (tweetHTML) {
+        feed.insertAdjacentHTML('beforeend', tweetHTML);
+      }
+    } else {
+      feed.innerHTML = tweetHTML || 'Henüz gönderi bulunmuyor.';
+    }
+
+    homeFeedCursor = page.nextCursor ?? null;
+    homeFeedHasMore = Boolean(homeFeedCursor);
+
+    if (moreButton) {
+      moreButton.hidden = !homeFeedHasMore;
+    }
+
   } catch (error) {
     if (!feed.isConnected) return;
 
-    feed.textContent =
-      `Gönderiler yüklenemedi: ${error.message}`;
+    const message = document.createElement('p');
+    message.className = 'feed-status';
+    message.textContent = `Gönderiler yüklenemedi: ${error.message}`;
+
+    if (loadMore) {
+      feed.appendChild(message);
+    } else {
+      feed.replaceChildren(message);
+    }
+
+  } finally {
+    isLoadingHomeFeed = false;
+
+    if (moreButton?.isConnected) {
+      moreButton.disabled = false;
+      moreButton.textContent = 'Daha Fazla Gönderi Yükle';
+    }
   }
 }
 
+
 async function loadProfile(username) {
   const currentHash = window.location.hash;
+
+  const currentUser = JSON.parse(
+    sessionStorage.getItem('authUser') || 'null'
+  );
+
+  const normalizeUsername = (value) =>
+    String(value || '').trim().replace(/^@/, '').toLowerCase();
+
+  const isOwnProfile =
+    normalizeUsername(currentUser?.username) === normalizeUsername(username);
 
   app.innerHTML = `
     <section class="profile-page">
@@ -556,95 +632,224 @@ async function loadProfile(username) {
     if (window.location.hash !== currentHash) return;
 
     // Profil arayüzünü oluştur
-    app.innerHTML = renderProfilePage(profile);
+    app.innerHTML = renderProfilePage({ ...profile, isOwnProfile });
 
+
+    const followButton = app.querySelector('#follow-user-button');
+
+    followButton?.addEventListener('click', async () => {
+      const isFollowing =
+        followButton.dataset.following === 'true';
+
+      followButton.disabled = true;
+      followButton.textContent = 'İşlem yapılıyor...';
+
+      try {
+        if (isFollowing) {
+          await unfollowUser(username);
+        } else {
+          await followUser(username);
+        }
+
+        const newFollowing = !isFollowing;
+
+        followButton.dataset.following = String(newFollowing);
+        followButton.textContent = newFollowing
+          ? 'Takibi Bırak'
+          : 'Takip Et';
+
+        const followerCountElement =
+          app.querySelector('#profile-follower-count');
+
+        if (followerCountElement) {
+          const count = Number(followerCountElement.textContent) || 0;
+
+          followerCountElement.textContent = String(
+            Math.max(0, count + (newFollowing ? 1 : -1))
+          );
+        }
+
+      } catch (error) {
+        alert(error.message);
+
+        followButton.textContent = isFollowing
+          ? 'Takibi Bırak'
+          : 'Takip Et';
+
+      } finally {
+        if (followButton.isConnected) {
+          followButton.disabled = false;
+        }
+      }
+    });
+    // Takipçi ve takip edilen listeleri
+    const relationsContainer = app.querySelector('#profile-relations');
+    const relationButtons = app.querySelectorAll('[data-profile-list]');
+
+    relationButtons.forEach((button) => {
+      button.addEventListener('click', async () => {
+        if (!relationsContainer) return;
+
+        const listType = button.dataset.profileList;
+        const isFollowers = listType === 'followers';
+
+        const title = isFollowers
+          ? 'Takipçiler'
+          : 'Takip edilenler';
+
+        relationsContainer.hidden = false;
+        relationsContainer.replaceChildren();
+
+        const heading = document.createElement('h3');
+        heading.textContent = title;
+
+        const status = document.createElement('p');
+        status.textContent = 'Liste yükleniyor...';
+
+        relationsContainer.append(heading, status);
+
+        relationButtons.forEach((item) => {
+          item.disabled = true;
+        });
+
+        try {
+          const users = isFollowers
+            ? await getUserFollowers(username)
+            : await getUserFollowing(username);
+
+          if (!relationsContainer.isConnected ||
+            window.location.hash !== currentHash) return;
+
+          relationsContainer.replaceChildren();
+          relationsContainer.appendChild(heading);
+
+          if (users.length === 0) {
+            const emptyMessage = document.createElement('p');
+            emptyMessage.textContent = 'Henüz kullanıcı bulunmuyor.';
+            relationsContainer.appendChild(emptyMessage);
+            return;
+          }
+
+          const list = document.createElement('ul');
+          list.className = 'profile-relation-list';
+
+          users.forEach((user) => {
+            const item = document.createElement('li');
+
+            const link = document.createElement('a');
+
+            const cleanUsername = String(user.username || '')
+              .trim()
+              .replace(/^@/, '');
+
+            link.href = `#profile/${encodeURIComponent(cleanUsername)}`;
+            link.textContent =
+              `${user.displayName || 'Kullanıcı'} @${cleanUsername}`;
+
+            item.appendChild(link);
+            list.appendChild(item);
+          });
+
+          relationsContainer.appendChild(list);
+
+        } catch (error) {
+          status.textContent = `Liste yüklenemedi: ${error.message}`;
+
+        } finally {
+          relationButtons.forEach((item) => {
+            item.disabled = false;
+          });
+        }
+      });
+    });
+
+    if (!isOwnProfile) {
+      app.querySelector('#edit-profile-button')?.remove();
+      app.querySelector('#profile-edit-form')?.remove();
+    }
     // 2. Profil düzenleme elemanları
     const editButton = app.querySelector('#edit-profile-button');
     const editForm = app.querySelector('#profile-edit-form');
     const cancelButton = app.querySelector('#cancel-profile-edit');
     const message = app.querySelector('#profile-edit-message');
-
-    // Profil fotoğrafı yükleme elemanları
+    // Profil fotoğrafı elemanları
     const avatarInput = app.querySelector('#edit-avatar-file');
-    const uploadButton = app.querySelector('#upload-avatar-button');
     const avatarMessage = app.querySelector('#avatar-upload-message');
-    // Seçilen fotoğrafın anlık önizlemesi
-    let avatarPreviewUrl = null;
-
-    avatarInput?.addEventListener('change', () => {
-      const file = avatarInput.files?.[0];
-
-      if (!file) return;
-
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        avatarMessage.textContent = 'Geçersiz fotoğraf formatı.';
-        avatarInput.value = '';
-        return;
-      }
-
-      if (file.size > 4 * 1024 * 1024) {
-        avatarMessage.textContent = 'Fotoğraf 4 MB sınırını aşamaz.';
-        avatarInput.value = '';
-        return;
-      }
-
-      if (avatarPreviewUrl) {
-        URL.revokeObjectURL(avatarPreviewUrl);
-      }
-
-      avatarPreviewUrl = URL.createObjectURL(file);
-
-      const avatarContainer = app.querySelector('.profile-avatar');
-
-      if (!avatarContainer) return;
-
-      let image = avatarContainer.querySelector('img');
-
-      if (!image) {
-        image = document.createElement('img');
-        avatarContainer.replaceChildren(image);
-      }
-
-      image.src = avatarPreviewUrl;
-      image.alt = 'Profil fotoğrafı önizlemesi';
-
-      avatarMessage.textContent = 'Fotoğraf önizlemesi hazır.';
+    // Düzenleme formunu aç
+    editButton?.addEventListener('click', () => {
+      editForm.hidden = false;
+      editForm.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+      editForm.querySelector('[name="displayName"]')?.focus();
     });
+    // Düzenlemeyi iptal et
+    cancelButton?.addEventListener('click', () => {
+      editForm.reset();
+      editForm.hidden = true;
+      message.textContent = '';
 
-    // Fotoğraf yükleme işlemi
-    uploadButton?.addEventListener('click', async () => {
-      const file = avatarInput?.files?.[0];
-
-      if (!file) {
-        avatarMessage.textContent = 'Lütfen bir fotoğraf seçin.';
-        return;
+      if (avatarMessage) {
+        avatarMessage.textContent = '';
       }
+    });
+    // Profil bilgilerini ve fotoğrafını Kaydet butonuyla güncelle
+    editForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
 
-      uploadButton.disabled = true;
-      avatarMessage.textContent = 'Fotoğraf yükleniyor...';
-      avatarMessage.style.color = '#1d9bf0';
+      const formData = new FormData(editForm);
+      const saveButton = app.querySelector('#save-profile-button');
+      const avatarFile = avatarInput?.files?.[0] || null;
+
+      saveButton.disabled = true;
+      message.textContent = 'Profil güncelleniyor...';
 
       try {
-        await uploadAvatar(file);
+        let avatarUrl = formData.get('avatarUrl') || null;
+
+        // Yeni fotoğraf seçilmişse önce Storage'a yükle
+        if (avatarFile) {
+          if (avatarMessage) {
+            avatarMessage.textContent = 'Fotoğraf yükleniyor...';
+          }
+          await uploadAvatar(avatarFile);
+
+          // Backend'den kaydedilmiş yeni fotoğraf URL'sini al
+          const updatedProfile = await getUserProfile(username);
+
+          avatarUrl = updatedProfile.avatarUrl;
+
+          if (avatarMessage) {
+            avatarMessage.textContent = 'Fotoğraf başarıyla kaydedildi.';
+          }
+        }
+
+        // Profil bilgilerini güncelle
+        await updateMyProfile({
+          displayName: formData.get('displayName'),
+          bio: formData.get('bio'),
+          location: formData.get('location'),
+          website: formData.get('website'),
+          avatarUrl: avatarUrl
+        });
 
         if (window.location.hash !== currentHash) return;
 
-        // Geçici fotoğraf adresini temizle
-        if (avatarPreviewUrl) {
-          URL.revokeObjectURL(avatarPreviewUrl);
-          avatarPreviewUrl = null;
-        }
+        message.textContent = 'Profil başarıyla güncellendi.';
 
-        // Güncellenen profili yeniden yükle
+        // Güncellenmiş profili yeniden yükle
         await loadProfile(username);
 
       } catch (error) {
-        avatarMessage.textContent = error.message;
-        avatarMessage.style.color = '#f4212e';
+        if (window.location.hash !== currentHash) return;
+
+        message.textContent = error.message;
+        message.style.color = '#f4212e';
 
       } finally {
-        if (uploadButton.isConnected) {
-          uploadButton.disabled = false;
+        if (saveButton.isConnected) {
+          saveButton.disabled = false;
         }
       }
     });
@@ -704,56 +909,130 @@ async function loadProfile(username) {
         }
       }
     });
-
-    // 3. Kullanıcının gönderilerini getir
+    // 3. Profil gönderilerini sayfalı yükle
     const postsContainer = app.querySelector('.profile-posts');
+    const moreProfileButton = app.querySelector(
+      '#load-more-profile-tweets'
+    );
 
     if (!postsContainer) return;
 
-    postsContainer.textContent = 'Gönderiler yükleniyor...';
+    let profileCursor = null;
+    let profileHasMore = true;
+    let isLoadingProfileTweets = false;
 
-    const page = await getUserTweets(username);
+    async function loadProfileTweets(loadMore = false) {
+      if (isLoadingProfileTweets) return;
 
-    if (window.location.hash !== currentHash) return;
+      if (loadMore && (!profileHasMore || !profileCursor)) return;
 
-    // Silinmiş ve boş gönderileri filtrele
-    const tweets = page.items.filter(tweet =>
-      !tweet.isDeleted &&
-      typeof tweet.content === 'string' &&
-      tweet.content.trim().length > 0
-    );
+      isLoadingProfileTweets = true;
 
-    if (tweets.length === 0) {
-      postsContainer.textContent = 'Henüz gönderi bulunmuyor.';
-      return;
+      if (!loadMore) {
+        postsContainer.textContent = 'Gönderiler yükleniyor...';
+      }
+
+      if (moreProfileButton) {
+        moreProfileButton.disabled = true;
+        moreProfileButton.textContent = 'Yükleniyor...';
+      }
+
+      try {
+        const page = await getUserTweets(
+          username,
+          loadMore ? profileCursor : null
+        );
+
+        if (
+          window.location.hash !== currentHash ||
+          !postsContainer.isConnected
+        ) return;
+
+        const existingIds = new Set(
+          [...postsContainer.querySelectorAll('.tweet-card')]
+            .map(card => card.dataset.tweetId)
+        );
+
+        const tweets = page.items.filter(tweet =>
+          tweet.parentId === null &&
+          !tweet.isDeleted &&
+          typeof tweet.content === 'string' &&
+          tweet.content.trim().length > 0 &&
+          !existingIds.has(String(tweet.id))
+        );
+
+        const tweetHTML = tweets.map(tweet => {
+          const author = tweet.author ?? {};
+
+          const displayName =
+            author.displayName || profile.displayName || 'Kullanıcı';
+
+          const rawUsername =
+            author.username || profile.username || 'kullanici';
+
+          return renderTweetCard({
+            id: tweet.id,
+            displayName,
+            username: rawUsername.startsWith('@')
+              ? rawUsername
+              : `@${rawUsername}`,
+            avatar: displayName.trim().charAt(0).toUpperCase(),
+            content: tweet.content,
+            likeCount: tweet.likeCount,
+            replyCount: tweet.replyCount,
+            isLiked: tweet.isLiked,
+            parentId: tweet.parentId,
+            parentContent: tweet.parentContent,
+            parentDeleted: tweet.parentDeleted,
+            isOwner: Boolean(
+              currentUser?.id &&
+              author.id &&
+              String(currentUser.id).toLowerCase() ===
+              String(author.id).toLowerCase()
+            )
+          });
+        }).join('');
+
+        if (loadMore) {
+          if (tweetHTML) {
+            postsContainer.insertAdjacentHTML('beforeend', tweetHTML);
+          }
+        } else {
+          postsContainer.innerHTML =
+            tweetHTML || 'Henüz gönderi bulunmuyor.';
+        }
+
+        profileCursor = page.nextCursor ?? null;
+        profileHasMore = Boolean(profileCursor);
+
+        if (moreProfileButton) {
+          moreProfileButton.hidden = !profileHasMore;
+        }
+
+      } catch (error) {
+        const message = document.createElement('p');
+        message.textContent =
+          `Gönderiler yüklenemedi: ${error.message}`;
+
+        postsContainer.appendChild(message);
+
+      } finally {
+        isLoadingProfileTweets = false;
+
+        if (moreProfileButton?.isConnected) {
+          moreProfileButton.disabled = false;
+          moreProfileButton.textContent =
+            'Daha Fazla Gönderi Yükle';
+        }
+      }
     }
 
-    // 4. TweetCard bileşenlerini oluştur
-    postsContainer.innerHTML = tweets.map(tweet => {
-      const author = tweet.author ?? {};
+    moreProfileButton?.addEventListener('click', () => {
+      loadProfileTweets(true);
+    });
 
-      const displayName =
-        author.displayName || profile.displayName || 'Kullanıcı';
+    await loadProfileTweets();
 
-      const rawUsername =
-        author.username || profile.username || 'kullanici';
-
-      return renderTweetCard({
-        id: tweet.id,
-        displayName,
-        username: rawUsername.startsWith('@')
-          ? rawUsername
-          : `@${rawUsername}`,
-        avatar: displayName.trim().charAt(0).toUpperCase(),
-        content: tweet.content,
-        likeCount: tweet.likeCount,
-        replyCount: tweet.replyCount,
-        isLiked: tweet.isLiked,
-        parentId: tweet.parentId,
-        parentContent: tweet.parentContent,
-        parentDeleted: tweet.parentDeleted
-      });
-    }).join('');
 
   } catch (error) {
     if (window.location.hash !== currentHash) return;
@@ -769,14 +1048,34 @@ async function loadProfile(username) {
   }
 }
 
-
-
-
-// Sayfa yönlendirme
 function renderApp() {
   if (!app) return;
 
-  switch (window.location.hash) {
+  const hash = window.location.hash;
+
+  const profileMatch = hash.match(/^#profile(?:\/(.+))?$/);
+
+  if (profileMatch) {
+    const currentUser = JSON.parse(
+      sessionStorage.getItem('authUser') || 'null'
+    );
+
+    const token = sessionStorage.getItem('authToken');
+
+    const username = profileMatch[1]
+      ? decodeURIComponent(profileMatch[1])
+      : currentUser?.username;
+
+    if (!token || !username) {
+      window.location.hash = '#login';
+      return;
+    }
+
+    loadProfile(username);
+    return;
+  }
+
+  switch (hash) {
     case '#login':
       app.innerHTML = renderLoginPage();
       bindLoginForm();
@@ -786,24 +1085,29 @@ function renderApp() {
       app.innerHTML = renderRegisterPage();
       bindRegisterForm();
       break;
-    case '#profile': {
-      const currentUser = JSON.parse(
-        sessionStorage.getItem('authUser') || 'null'
-      );
 
-      if (!currentUser || !currentUser.username) {
+
+    case '#home':
+      if (!sessionStorage.getItem('authToken')) {
         window.location.hash = '#login';
-        break;
+        return;
       }
 
-      loadProfile(currentUser.username);
-      break;
-    }
-
-    default:
       app.innerHTML = renderHomePage();
       bindTweetComposer();
+
+      const moreButton = app.querySelector('#load-more-tweets');
+
+      moreButton?.addEventListener('click', () => {
+        loadPublicFeed(true);
+      });
+
       loadPublicFeed();
+      break;
+
+
+    default:
+      window.location.hash = '#login';
       break;
   }
 }
