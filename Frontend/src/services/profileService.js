@@ -318,3 +318,39 @@ export function followUser(username) {
 export function unfollowUser(username) {
   return changeFollowStatus(username, 'DELETE');
 }
+
+
+export async function getUserSuggestions() {
+  const token = sessionStorage.getItem('authToken');
+
+  if (!token) {
+    throw new Error('Önerilen kullanıcıları görmek için giriş yapmalısınız.');
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL.replace(/\/$/, '')}/api/users/suggestions`,
+    {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      data?.detail ||
+      data?.title ||
+      `Önerilen kullanıcılar yüklenemedi: ${response.status}`
+    );
+  }
+
+  if (!Array.isArray(data)) {
+    throw new Error('Öneri verisi beklenen formatta değil.');
+  }
+
+  return data;
+}

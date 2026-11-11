@@ -1068,3 +1068,119 @@ button {
 .load-more-button[hidden] {
   display: none;
 }
+
+/* Önerilen Kullanıcılar */
+.suggestions {
+  background: #16181c;
+  border-radius: 18px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.suggestions h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: #e7e9ea;
+}
+
+/* Kullanıcı kartı */
+.suggested-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #2f3336;
+}
+
+.suggested-user:last-child {
+  border-bottom: none;
+}
+
+/* Profil bağlantısı */
+.suggested-user-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  text-decoration: none;
+  color: #e7e9ea;
+  border-radius: 8px;
+  padding: 4px;
+  transition: background 0.2s;
+}
+
+.suggested-user-link:hover {
+  background: #22252a;
+}
+
+/* Avatar */
+.suggested-user-avatar {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 50%;
+  background: #273340;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.suggested-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Kullanıcı bilgileri */
+.suggested-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+
+.suggested-user-info strong {
+  color: #e7e9ea;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggested-user-info span {
+  color: #71767b;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Takip Et butonu */
+.suggested-follow-button {
+  flex-shrink: 0;
+  background: #1d9bf0;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.suggested-follow-button:hover {
+  background: #1a8cd8;
+}
+
+.suggested-follow-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}

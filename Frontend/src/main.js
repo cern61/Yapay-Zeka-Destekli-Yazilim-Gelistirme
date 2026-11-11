@@ -15,7 +15,8 @@ import {
   followUser,
   unfollowUser,
   getUserFollowers,
-  getUserFollowing
+  getUserFollowing,
+  getUserSuggestions
 } from './services/profileService.js';
 import {
   createTweet,
@@ -606,6 +607,119 @@ async function loadPublicFeed(loadMore = false) {
 }
 
 
+async function loadUserSuggestions() {
+  const container = app.querySelector('.suggestions');
+
+  if (!container) return;
+
+  const heading = container.querySelector('h2');
+
+  container.textContent = 'Öneriler yükleniyor...';
+
+  try {
+    const users = await getUserSuggestions();
+
+    if (!container.isConnected) return;
+
+    container.replaceChildren();
+
+    if (heading) {
+      container.appendChild(heading);
+    } else {
+      const title = document.createElement('h2');
+      title.textContent = 'Önerilen Kullanıcılar';
+      container.appendChild(title);
+    }
+
+    if (users.length === 0) {
+      const empty = document.createElement('p');
+      empty.textContent = 'Şu anda önerilecek kullanıcı yok.';
+      container.appendChild(empty);
+      return;
+    }
+
+    users.forEach(user => {
+      const card = document.createElement('div');
+      card.className = 'suggested-user';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'suggested-user-avatar';
+
+      const displayName = user.displayName || 'Kullanıcı';
+      avatar.textContent = displayName.trim().charAt(0).toUpperCase();
+
+      if (user.avatarUrl) {
+        const image = document.createElement('img');
+
+        try {
+          const imageUrl = new URL(user.avatarUrl);
+
+          if (['http:', 'https:'].includes(imageUrl.protocol)) {
+            image.src = imageUrl.href;
+            image.alt = displayName;
+            avatar.replaceChildren(image);
+          }
+        } catch {
+          // Geçersiz fotoğraf adresinde harf avatarı gösterilir.
+        }
+      }
+
+      const info = document.createElement('div');
+      info.className = 'suggested-user-info';
+
+      const name = document.createElement('strong');
+      name.textContent = displayName;
+
+      const username = String(user.username || '')
+        .replace(/^@/, '');
+
+      const usernameText = document.createElement('span');
+      usernameText.textContent = `@${username}`;
+
+      info.append(name, usernameText);
+
+      const followButton = document.createElement('button');
+      followButton.type = 'button';
+      followButton.className = 'suggested-follow-button';
+      followButton.textContent = 'Takip Et';
+
+      followButton.addEventListener('click', async () => {
+        followButton.disabled = true;
+        followButton.textContent = 'İşleniyor...';
+
+        try {
+          await followUser(username);
+
+          card.remove();
+
+        } catch (error) {
+          alert(error.message);
+          followButton.disabled = false;
+          followButton.textContent = 'Takip Et';
+        }
+      });
+
+      // Kullanıcı profiline yönlendiren bağlantı
+      const profileLink = document.createElement('a');
+
+      profileLink.className = 'suggested-user-link';
+      profileLink.href = `#profile/${encodeURIComponent(username)}`;
+
+      profileLink.append(avatar, info);
+
+      // Profil bağlantısı ve takip butonu
+      card.append(profileLink, followButton);
+
+      container.appendChild(card);
+    });
+
+  } catch (error) {
+    container.textContent =
+      `Öneriler yüklenemedi: ${error.message}`;
+  }
+}
+
+
 async function loadProfile(username) {
   const currentHash = window.location.hash;
 
@@ -1094,6 +1208,7 @@ function renderApp() {
       }
 
       app.innerHTML = renderHomePage();
+      loadUserSuggestions();
       bindTweetComposer();
 
       const moreButton = app.querySelector('#load-more-tweets');

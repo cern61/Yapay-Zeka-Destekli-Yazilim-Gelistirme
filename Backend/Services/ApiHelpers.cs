@@ -16,7 +16,7 @@ public static class ApiHelpers
     public static async Task<UserProfile> ToProfileAsync(
         AppDbContext db, User user, Guid? viewerId, CancellationToken cancellationToken)
     {
-        var tweetCount = await db.Tweets.CountAsync(tweet => tweet.UserId == user.Id, cancellationToken);
+        var tweetCount = await db.Tweets.CountAsync(tweet => tweet.UserId == user.Id && tweet.ParentId == null && tweet.DeletedAt == null,cancellationToken);
         var followerCount = await db.Follows.CountAsync(follow => follow.FollowingId == user.Id, cancellationToken);
         var followingCount = await db.Follows.CountAsync(follow => follow.FollowerId == user.Id, cancellationToken);
         var isFollowing = viewerId.HasValue && await db.Follows.AnyAsync(

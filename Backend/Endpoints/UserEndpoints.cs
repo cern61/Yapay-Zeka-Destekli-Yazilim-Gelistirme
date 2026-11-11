@@ -11,6 +11,7 @@ public static class UserEndpoints
     public static IEndpointRouteBuilder MapUserEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/users").WithTags("Users");
+        group.MapGet("/suggestions", GetSuggestionsAsync).RequireAuthorization();
         group.MapGet("/{username}", GetProfileAsync);
         group.MapPut("/me", UpdateProfileAsync).RequireAuthorization();
         group.MapPost("/me/avatar", UploadAvatarAsync).RequireAuthorization();
@@ -21,6 +22,34 @@ public static class UserEndpoints
         group.MapDelete("/{username}/follow", UnfollowAsync).RequireAuthorization();
         return endpoints;
     }
+
+    private static async Task<IResult> GetSuggestionsAsync(
+    HttpContext context,
+    AppDbContext db,
+    CancellationToken cancellationToken)
+{
+    var userId = ApiHelpers.CurrentUserId(context);
+
+    var followedUserIds = db.Follows
+        .Where(follow => follow.FollowerId == userId)
+        .Select(follow => follow.FollowingId);
+
+    var suggestions = await db.Users
+        .Where(user =>
+            user.Id != userId &&
+            !followedUserIds.Contains(user.Id))
+        .OrderBy(user => user.Username)
+        .Select(user => new UserSummary(
+            user.Id,
+            user.Username,
+            user.DisplayName,
+            user.AvatarUrl
+        ))
+        .Take(5)
+        .ToListAsync(cancellationToken);
+
+    return Results.Ok(suggestions);
+}
 
     private static async Task<IResult> GetProfileAsync(
         string username, HttpContext context, AppDbContext db, CancellationToken cancellationToken)
