@@ -19,7 +19,7 @@ Sorumlu: Ahmet Yasin Geldi · Supabase (PostgreSQL) · Şema: [`database/schema.
 
 | Değişiklik | Ne ekler | Ortak veritabanında |
 |------------|----------|---------------------|
-| `001_mesajlar_bildirimler.sql` | `messages`, `notifications` tabloları | uygulanacak |
+| `001_mesajlar_bildirimler.sql` | `messages`, `notifications` tabloları | uygulandı |
 
 ## Tablolar
 
