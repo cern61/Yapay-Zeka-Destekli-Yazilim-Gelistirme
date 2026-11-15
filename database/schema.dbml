@@ -66,6 +66,38 @@ Table follows {
   }
 }
 
+Table messages {
+  id uuid [pk, default: `gen_random_uuid()`]
+  sender_id uuid [not null, note: 'Gönderen. CHECK: sender_id <> recipient_id']
+  recipient_id uuid [not null, note: 'Alıcı']
+  content varchar(1000) [not null, note: 'CHECK: boşluk hariç en az 1 karakter']
+  created_at timestamptz [not null, default: `now()`]
+  read_at timestamptz [note: 'NULL ise okunmamış. CHECK: read_at >= created_at']
+
+  indexes {
+    (sender_id, recipient_id, created_at, id) [name: 'ix_messages_pair_created', note: 'Sohbet mesajları. DESC sıralı']
+    (recipient_id, created_at, id) [name: 'ix_messages_recipient_created', note: 'Gelen kutusu ve okunmamış sayısı. DESC sıralı']
+  }
+}
+
+Table notifications {
+  id uuid [pk, default: `gen_random_uuid()`]
+  recipient_id uuid [not null, note: 'Bildirimi alan. CHECK: recipient_id <> actor_id']
+  actor_id uuid [not null, note: 'Hareketi yapan']
+  type varchar(10) [not null, note: "CHECK: 'like', 'reply' veya 'follow'"]
+  tweet_id uuid [note: 'like: beğenilen tweet, reply: yanıt tweeti, follow: NULL (CHECK ile zorunlu)']
+  created_at timestamptz [not null, default: `now()`]
+  read_at timestamptz [note: 'NULL ise okunmamış. CHECK: read_at >= created_at']
+
+  indexes {
+    (recipient_id, actor_id, type, tweet_id) [unique, name: 'notifications_unique_event', note: 'NULLS NOT DISTINCT: aynı hareket için ikinci bildirim olmaz']
+    (recipient_id, created_at, id) [name: 'ix_notifications_recipient_created', note: 'Bildirim listesi + cursor. DESC sıralı']
+    recipient_id [name: 'ix_notifications_recipient_unread', note: 'Okunmamış sayısı. Kısmi: WHERE read_at IS NULL']
+    actor_id [name: 'ix_notifications_actor']
+    tweet_id [name: 'ix_notifications_tweet', note: 'Kısmi: WHERE tweet_id IS NOT NULL']
+  }
+}
+
 // İlişkiler: kayıt fiziksel olarak silinirse bağlı kayıtlar da silinir
 Ref: tweets.user_id > users.id [delete: cascade]
 Ref: tweets.parent_id > tweets.id [delete: cascade]
@@ -73,3 +105,8 @@ Ref: likes.user_id > users.id [delete: cascade]
 Ref: likes.tweet_id > tweets.id [delete: cascade]
 Ref: follows.follower_id > users.id [delete: cascade]
 Ref: follows.following_id > users.id [delete: cascade]
+Ref: messages.sender_id > users.id [delete: cascade]
+Ref: messages.recipient_id > users.id [delete: cascade]
+Ref: notifications.recipient_id > users.id [delete: cascade]
+Ref: notifications.actor_id > users.id [delete: cascade]
+Ref: notifications.tweet_id > tweets.id [delete: cascade]

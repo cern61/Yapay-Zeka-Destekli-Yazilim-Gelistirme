@@ -107,6 +107,11 @@ erDiagram
     USERS ||--o{ FOLLOWS : takip_eder
     USERS ||--o{ FOLLOWS : takip_edilir
     TWEETS ||--o{ TWEETS : yanitlanir
+    USERS ||--o{ MESSAGES : gonderir
+    USERS ||--o{ MESSAGES : alir
+    USERS ||--o{ NOTIFICATIONS : bildirim_alir
+    USERS ||--o{ NOTIFICATIONS : tetikler
+    TWEETS ||--o{ NOTIFICATIONS : ilgili
 
     USERS {
         uuid id PK
@@ -139,6 +144,23 @@ erDiagram
         uuid following_id PK
         timestamptz created_at
     }
+    MESSAGES {
+        uuid id PK
+        uuid sender_id FK
+        uuid recipient_id FK
+        varchar content
+        timestamptz created_at
+        timestamptz read_at
+    }
+    NOTIFICATIONS {
+        uuid id PK
+        uuid recipient_id FK
+        uuid actor_id FK
+        varchar type
+        uuid tweet_id FK
+        timestamptz created_at
+        timestamptz read_at
+    }
 ```
 
 | Tablo | İçerik | Kurallar |
@@ -147,6 +169,8 @@ erDiagram
 | `tweets` | Tweetler ve yanıtlar | `parent_id` doluysa kayıt yanıttır, yanıta da yanıt verilebilir. İçerik 1-280 karakter |
 | `likes` | Beğeniler | `(user_id, tweet_id)` birincil anahtar: aynı tweet iki kez beğenilemez |
 | `follows` | Takip ilişkileri | `(follower_id, following_id)` birincil anahtar, kişi kendini takip edemez |
+| `messages` | Özel mesajlar | İki kişi arasındaki mesajların tamamı bir sohbettir. İçerik 1-1000 karakter, kişi kendine mesaj atamaz, `read_at` boşsa okunmamıştır |
+| `notifications` | Beğeni, yanıt ve takip bildirimleri | `type`: `like`, `reply`, `follow`. Kişi kendi hareketinden bildirim almaz, aynı hareket için ikinci bildirim oluşmaz |
 
 **Tasarım kararları**
 
@@ -159,7 +183,9 @@ erDiagram
 - **Güvenlik:** Tüm tablolarda RLS açıktır ve politika tanımlı değildir. Bu yüzden Supabase'in otomatik REST API'si verilere erişemez. Veriye yalnızca backend erişir.
 
 **İndeksler:** genel akış `tweets(created_at, id)` (yalnızca silinmemişler), profil ve takip akışı `tweets(user_id, created_at, id)`,
-yanıtlar `tweets(parent_id, created_at)`, beğeni sayısı `likes(tweet_id)`, takipçi sayısı `follows(following_id)`.
+yanıtlar `tweets(parent_id, created_at)`, beğeni sayısı `likes(tweet_id)`, takipçi sayısı `follows(following_id)`,
+sohbet `messages(sender_id, recipient_id, created_at, id)`, gelen kutusu `messages(recipient_id, created_at, id)`,
+bildirim listesi `notifications(recipient_id, created_at, id)`, okunmamış bildirim sayısı `notifications(recipient_id)` (yalnızca okunmamışlar).
 
 
 ---
