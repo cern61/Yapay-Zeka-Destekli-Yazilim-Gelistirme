@@ -9,6 +9,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Tweet> Tweets => Set<Tweet>();
     public DbSet<Like> Likes => Set<Like>();
     public DbSet<Follow> Follows => Set<Follow>();
+    public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +57,31 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(follow => follow.CreatedAt).HasDefaultValueSql("now()");
             entity.HasOne<User>().WithMany().HasForeignKey(follow => follow.FollowerId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany().HasForeignKey(follow => follow.FollowingId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.HasKey(message => message.Id);
+            entity.Property(message => message.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(message => message.Content).HasMaxLength(1000);
+            entity.Property(message => message.CreatedAt).HasDefaultValueSql("now()");
+            entity.HasOne(message => message.Sender).WithMany().HasForeignKey(message => message.SenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(message => message.RecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(notification => notification.Id);
+            entity.Property(notification => notification.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(notification => notification.Type).HasMaxLength(10);
+            entity.Property(notification => notification.CreatedAt).HasDefaultValueSql("now()");
+            entity.HasOne(notification => notification.Actor).WithMany().HasForeignKey(notification => notification.ActorId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(notification => notification.RecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Tweet>().WithMany().HasForeignKey(notification => notification.TweetId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
