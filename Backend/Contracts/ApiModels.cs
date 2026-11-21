@@ -14,3 +14,10 @@ public sealed record TweetResponse(Guid Id, string? Content, bool IsDeleted, Gui
 public sealed record AuthResponse(string AccessToken, DateTime ExpiresAt, UserProfile User);
 public sealed record PageResponse<T>(IReadOnlyList<T> Items, string? NextCursor);
 public sealed record TweetCursor(DateTime CreatedAt, Guid Id);
+public sealed record SendMessageRequest(string Content);
+public sealed record MessageResponse(Guid Id, Guid SenderId, Guid RecipientId, string Content,
+    DateTime CreatedAt, DateTime? ReadAt);
+public sealed record ConversationResponse(UserSummary User, MessageResponse LastMessage, int UnreadCount);
+public sealed record NotificationResponse(Guid Id, string Type, UserSummary Actor, Guid? TweetId,
+    string? TweetContent, bool TweetDeleted, DateTime CreatedAt, DateTime? ReadAt);
+public sealed record CountResponse(int Count);
