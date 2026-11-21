@@ -47,10 +47,16 @@ public static class TweetEndpoints
             });
         }
 
-        if (request.ParentId is { } parentId
-            && !await db.Tweets.AnyAsync(tweet => tweet.Id == parentId, cancellationToken))
+        Guid? parentAuthorId = null;
+        if (request.ParentId is { } parentId)
         {
-            return Results.NotFound(new { message = "Yanıtlanacak tweet bulunamadı." });
+            parentAuthorId = await db.Tweets.Where(tweet => tweet.Id == parentId)
+                .Select(tweet => (Guid?)tweet.UserId)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (parentAuthorId is null)
+            {
+                return Results.NotFound(new { message = "Yanıtlanacak tweet bulunamadı." });
+            }
         }
 
         var tweet = new Tweet
@@ -59,8 +65,18 @@ public static class TweetEndpoints
             ParentId = request.ParentId,
             Content = content
         };
-        db.Tweets.Add(tweet);
-        await db.SaveChangesAsync(cancellationToken);
+        await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+        {
+            db.Tweets.Add(tweet);
+            await db.SaveChangesAsync(cancellationToken);
+            if (parentAuthorId is { } recipientId)
+            {
+                // reply bildiriminde tweet_id = yanıt tweetinin kendisi
+                await NotificationWriter.AddAsync(
+                    db, recipientId, tweet.UserId, NotificationTypes.Reply, tweet.Id, cancellationToken);
+            }
+            await transaction.CommitAsync(cancellationToken);
+        }
         var response = await db.Tweets.Where(item => item.Id == tweet.Id)
             .ProjectTweets(db, tweet.UserId).SingleAsync(cancellationToken);
         return Results.Created($"/api/tweets/{tweet.Id}", response);
@@ -108,7 +124,10 @@ public static class TweetEndpoints
     private static async Task<IResult> LikeAsync(
         Guid id, HttpContext context, AppDbContext db, CancellationToken cancellationToken)
     {
-        if (!await db.Tweets.AnyAsync(tweet => tweet.Id == id, cancellationToken))
+        var authorId = await db.Tweets.Where(tweet => tweet.Id == id)
+            .Select(tweet => (Guid?)tweet.UserId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (authorId is null)
         {
             return Results.NotFound();
         }
@@ -118,8 +137,12 @@ public static class TweetEndpoints
             like => like.UserId == userId && like.TweetId == id, cancellationToken);
         if (!exists)
         {
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             db.Likes.Add(new Like { UserId = userId, TweetId = id });
             await db.SaveChangesAsync(cancellationToken);
+            await NotificationWriter.AddAsync(
+                db, authorId.Value, userId, NotificationTypes.Like, id, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         return Results.NoContent();
     }
