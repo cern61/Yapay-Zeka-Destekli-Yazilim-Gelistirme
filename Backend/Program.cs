@@ -122,7 +122,8 @@ app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapTweetEndpoints();
 app.MapFeedEndpoints();
-
+app.MapMessageEndpoints();
+app.MapNotificationEndpoints();
 app.Run();
 
 public partial class Program;
