@@ -11,6 +11,8 @@ using Xunit;
 
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.TestHost;
 
 namespace Backend.Tests.Endpoints;
 
@@ -140,16 +142,43 @@ public class AuthTestFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
 
-        builder.ConfigureAppConfiguration((context, config) =>
+        builder.UseSetting("Jwt:Secret",
+            "TestOnlySecretKey12345678901234567890");
+
+        builder.UseSetting("ConnectionStrings:Default",
+            "Host=127.0.0.1;Port=1;Database=test;Username=test;Password=test");
+
+        builder.ConfigureTestServices(services =>
         {
-            config.AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["Jwt:Secret"] = "TestOnlySecretKey12345678901234567890",
-                    ["ConnectionStrings:Default"] =
-                        "Host=localhost;Database=test;Username=test;Password=test"
-                });
+            services.RemoveAll<DbContextOptions<AppDbContext>>();
+            services.RemoveAll<AppDbContext>();
+
+            services.AddSingleton<SqliteConnection>(_ =>
+            {
+                var connection = new SqliteConnection("Data Source=:memory:");
+                connection.Open();
+                return connection;
+            });
+
+            services.AddDbContext<AppDbContext>((provider, options) =>
+            {
+                var connection = provider.GetRequiredService<SqliteConnection>();
+                options.UseSqlite(connection);
+            });
         });
     }
+protected override Microsoft.Extensions.Hosting.IHost CreateHost(
+    Microsoft.Extensions.Hosting.IHostBuilder builder)
+{
+    var host = base.CreateHost(builder);
 
-}
+    using var scope = host.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    if (!db.Database.IsSqlite())
+        throw new InvalidOperationException("SQLite test database required.");
+
+    db.Database.EnsureCreated();
+
+    return host;
+}}

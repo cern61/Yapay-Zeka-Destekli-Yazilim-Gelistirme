@@ -13,29 +13,36 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    var isPostgreSql = Database.IsNpgsql();
+
+    if (isPostgreSql)
     {
         modelBuilder.HasDefaultSchema("public");
+    }
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(user => user.Id);
-            entity.Property(user => user.Id).HasDefaultValueSql("gen_random_uuid()");
-            entity.Property(user => user.Username).HasColumnType("citext").HasMaxLength(15);
+            entity.Property(user => user.Id).HasDefaultValueSql(isPostgreSql ? "gen_random_uuid()" : null);
+            entity.Property(user => user.Username).HasColumnType(isPostgreSql ? "citext" : "TEXT")
+.UseCollation(isPostgreSql ? null : "NOCASE").HasMaxLength(15);
             entity.Property(user => user.DisplayName).HasMaxLength(50);
-            entity.Property(user => user.Email).HasColumnType("citext").HasMaxLength(254);
+            entity.Property(user => user.Email).HasColumnType(isPostgreSql ? "citext" : "TEXT")
+.UseCollation(isPostgreSql ? null : "NOCASE").HasMaxLength(254);
             entity.Property(user => user.Bio).HasMaxLength(160);
             entity.Property(user => user.Location).HasMaxLength(30);
             entity.Property(user => user.Website).HasMaxLength(100);
             entity.Property(user => user.AvatarUrl).HasMaxLength(500);
-            entity.Property(user => user.CreatedAt).HasDefaultValueSql("now()");
-            entity.Property(user => user.UpdatedAt).HasDefaultValueSql("now()");
+            entity.Property(user => user.CreatedAt).HasDefaultValueSql(isPostgreSql ? "now()" : "CURRENT_TIMESTAMP");
+            entity.Property(user => user.UpdatedAt).HasDefaultValueSql(isPostgreSql ? "now()" : "CURRENT_TIMESTAMP");
         });
 
         modelBuilder.Entity<Tweet>(entity =>
         {
             entity.HasKey(tweet => tweet.Id);
-            entity.Property(tweet => tweet.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(tweet => tweet.Id).HasDefaultValueSql(isPostgreSql ? "gen_random_uuid()" : null);
             entity.Property(tweet => tweet.Content).HasMaxLength(280);
-            entity.Property(tweet => tweet.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(tweet => tweet.CreatedAt).HasDefaultValueSql(isPostgreSql ? "now()" : "CURRENT_TIMESTAMP");
             entity.HasQueryFilter(tweet => tweet.DeletedAt == null);
             entity.HasOne(tweet => tweet.Author).WithMany().HasForeignKey(tweet => tweet.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -46,7 +53,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<Like>(entity =>
         {
             entity.HasKey(like => new { like.UserId, like.TweetId });
-            entity.Property(like => like.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(like => like.CreatedAt).HasDefaultValueSql(isPostgreSql ? "now()" : "CURRENT_TIMESTAMP");
             entity.HasOne<User>().WithMany().HasForeignKey(like => like.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<Tweet>().WithMany().HasForeignKey(like => like.TweetId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -54,16 +61,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<Follow>(entity =>
         {
             entity.HasKey(follow => new { follow.FollowerId, follow.FollowingId });
-            entity.Property(follow => follow.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(follow => follow.CreatedAt).HasDefaultValueSql(isPostgreSql ? "now()" : "CURRENT_TIMESTAMP");
             entity.HasOne<User>().WithMany().HasForeignKey(follow => follow.FollowerId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany().HasForeignKey(follow => follow.FollowingId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<Message>(entity =>
         {
             entity.HasKey(message => message.Id);
-            entity.Property(message => message.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(message => message.Id).HasDefaultValueSql(isPostgreSql ? "gen_random_uuid()" : null);
             entity.Property(message => message.Content).HasMaxLength(1000);
-            entity.Property(message => message.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(message => message.CreatedAt).HasDefaultValueSql(isPostgreSql ? "now()" : "CURRENT_TIMESTAMP");
             entity.HasOne(message => message.Sender).WithMany().HasForeignKey(message => message.SenderId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany().HasForeignKey(message => message.RecipientId)
@@ -73,9 +80,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<Notification>(entity =>
         {
             entity.HasKey(notification => notification.Id);
-            entity.Property(notification => notification.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(notification => notification.Id).HasDefaultValueSql(isPostgreSql ? "gen_random_uuid()" : null);
             entity.Property(notification => notification.Type).HasMaxLength(10);
-            entity.Property(notification => notification.CreatedAt).HasDefaultValueSql("now()");
+            entity.Property(notification => notification.CreatedAt).HasDefaultValueSql(isPostgreSql ? "now()" : "CURRENT_TIMESTAMP");
             entity.HasOne(notification => notification.Actor).WithMany().HasForeignKey(notification => notification.ActorId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany().HasForeignKey(notification => notification.RecipientId)
