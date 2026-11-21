@@ -158,8 +158,12 @@ public static class UserEndpoints
             follow => follow.FollowerId == followerId && follow.FollowingId == target.Id, cancellationToken);
         if (!exists)
         {
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
             db.Follows.Add(new Follow { FollowerId = followerId, FollowingId = target.Id });
             await db.SaveChangesAsync(cancellationToken);
+            await NotificationWriter.AddAsync(
+                db, target.Id, followerId, NotificationTypes.Follow, null, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
 
         return Results.NoContent();
