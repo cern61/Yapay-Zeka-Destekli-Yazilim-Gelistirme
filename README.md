@@ -47,50 +47,6 @@ Yapay zeka bu projede **geliştirme aracı** olarak kullanılmıştır.
 | GitHub Copilot (Copilot SDK, VS Code) | Kod geliştirme, hata ayıklama ve dokümantasyon | ASP.NET Core backend'in oluşturulması, derleme hatalarının giderilmesi ve çalıştırma/API yönergelerinin hazırlanması |
 | Claude | Kod yazımı, hata ayıklama, test üretimi, dokümantasyon, birim testleri| Teknik planlama, veri tabanı |
 
-
----
-
-## 🚀 Backend
-
-Backend, ASP.NET Core 8 Minimal API ile modüler bir klasör yapısında geliştirilmiştir:
-
-```text
-Backend/
-├── Contracts/   # İstek ve yanıt DTO'ları
-├── Data/        # EF Core DbContext ve PostgreSQL eşlemeleri
-├── Endpoints/   # Authentication, kullanıcı, tweet ve akış uçları
-├── Models/      # User, Tweet, Like ve Follow varlıkları
-├── Services/    # JWT, ortak API yardımcıları ve cursor sayfalama
-├── Program.cs   # DI, JWT, CORS, hata yönetimi ve endpoint kaydı
-└── appsettings.json
-```
-<img src="images/api.png" alt="Backend Api" width="600" height="400">
-
-### Modüller ve Sorumluluklar
-
-| Modül | Görev |
-|-------|------------|
-| Authentication | Kayıt/giriş, BCrypt parola hash'leme ve JWT üretimi |
-| Users | Profil görüntüleme/güncelleme, tweet listesi ve takip ilişkileri |
-| Tweets | Tweet/yanıt oluşturma, görüntüleme ve sahibinin soft delete işlemi |
-| Feed | Genel akış ve takip edilen kullanıcıların akışı |
-| Likes | Tweet beğenme ve beğeniyi kaldırma |
-
-EF Core, Npgsql üzerinden Supabase PostgreSQL'e bağlanır. `UseSnakeCaseNamingConvention()` ve `citext` eşlemeleri mevcut veritabanı şemasına uyum sağlar. Tablolar [`database/schema.sql`](database/schema.sql) ile yönetilir; backend migration çalıştırmaz veya otomatik tablo oluşturmaz. Akışlar `(created_at, id)` cursor sıralamasıyla 20 kayıtlık sayfalar döndürür.
-
-### Backend'i Çalıştırma
-
-Gereksinimler: **.NET 8 SDK**, Supabase PostgreSQL bağlantısı ve önceden uygulanmış veritabanı şeması. Önce Supabase SQL Editor'de [`database/schema.sql`](database/schema.sql) dosyasını çalıştırın. PowerShell'de depo kök klasöründen:
-
-```powershell
-dotnet restore Backend\Backend.csproj
-dotnet user-secrets --project Backend\Backend.csproj set "ConnectionStrings:Default" "Host=<session-pooler-host>;Port=5432;Database=postgres;Username=postgres.<project-ref>;Password=<database-password>;SSL Mode=Require;Trust Server Certificate=true;Maximum Pool Size=3"
-dotnet user-secrets --project Backend\Backend.csproj set "Jwt:Secret" "<en-az-32-bayt-uzunlugunda-rastgele-bir-sir>"
-dotnet run --project Backend\Backend.csproj
-```
-
-Bağlantı değerlerini Supabase **Session pooler** ayarlarından alın; `<...>` alanlarını gerçek değerlerle değiştirin. Gerçek veritabanı şifresini veya JWT sırrını kaynak koduna, `appsettings.json` dosyasına ya da GitHub'a eklemeyin. Başlatma tamamlandığında terminalde gösterilen `/swagger` adresini açın. API uçları, istek biçimleri ve güvenlik ayrıntıları için [`docs/backend.md`](docs/backend.md) dosyasına bakın.
-
 ---
 
 ## 🗄 Veri Tabanı
@@ -187,5 +143,49 @@ yanıtlar `tweets(parent_id, created_at)`, beğeni sayısı `likes(tweet_id)`, t
 sohbet `messages(sender_id, recipient_id, created_at, id)`, gelen kutusu `messages(recipient_id, created_at, id)`,
 bildirim listesi `notifications(recipient_id, created_at, id)`, okunmamış bildirim sayısı `notifications(recipient_id)` (yalnızca okunmamışlar).
 
+---
+
+## 🚀 Backend
+
+Backend, ASP.NET Core 8 Minimal API ile modüler bir klasör yapısında geliştirilmiştir:
+
+```text
+Backend/
+├── Contracts/   # İstek ve yanıt DTO'ları
+├── Data/        # EF Core DbContext ve PostgreSQL eşlemeleri
+├── Endpoints/   # Authentication, kullanıcı, tweet, akış, mesaj ve bildirim uçları
+├── Models/      # User, Tweet, Like, Follow, Message ve Notification varlıkları
+├── Services/    # JWT, ortak API yardımcıları, cursor sayfalama ve bildirim oluşturma
+├── Program.cs   # DI, JWT, CORS, hata yönetimi ve endpoint kaydı
+└── appsettings.json
+```
+<img src="images/api.png" alt="Backend Api" width="600" height="400">
+
+### Modüller ve Görevler
+
+| Modül | Görev |
+|-------|------------|
+| Authentication | Kayıt/giriş, BCrypt parola hash'leme ve JWT üretimi |
+| Users | Profil görüntüleme/güncelleme, tweet listesi ve takip ilişkileri |
+| Tweets | Tweet/yanıt oluşturma, görüntüleme ve sahibinin soft delete işlemi |
+| Feed | Genel akış ve takip edilen kullanıcıların akışı |
+| Likes | Tweet beğenme ve beğeniyi kaldırma |
+| Messages | Özel mesajlaşma, sohbet listesi ve okunmamış mesaj sayısı |
+| Notifications | Beğeni, yanıt ve takip bildirimleri, okundu işaretleme |
+
+EF Core, Npgsql üzerinden Supabase PostgreSQL'e bağlanır. `UseSnakeCaseNamingConvention()` ve `citext` eşlemeleri mevcut veritabanı şemasına uyum sağlar. Tablolar [`database/schema.sql`](database/schema.sql) ile yönetilir; backend migration çalıştırmaz veya otomatik tablo oluşturmaz. Akışlar `(created_at, id)` cursor sıralamasıyla 20 kayıtlık sayfalar döndürür.
+
+### Backend'i Çalıştırma
+
+Gereksinimler: **.NET 8 SDK**, Supabase PostgreSQL bağlantısı ve önceden uygulanmış veritabanı şeması. Önce Supabase SQL Editor'de [`database/schema.sql`](database/schema.sql) dosyasını çalıştırın. PowerShell'de depo kök klasöründen:
+
+```powershell
+dotnet restore Backend\Backend.csproj
+dotnet user-secrets --project Backend\Backend.csproj set "ConnectionStrings:Default" "Host=<session-pooler-host>;Port=5432;Database=postgres;Username=postgres.<project-ref>;Password=<database-password>;SSL Mode=Require;Trust Server Certificate=true;Maximum Pool Size=3"
+dotnet user-secrets --project Backend\Backend.csproj set "Jwt:Secret" "<en-az-32-bayt-uzunlugunda-rastgele-bir-sir>"
+dotnet run --project Backend\Backend.csproj
+```
+
+Bağlantı değerlerini Supabase **Session pooler** ayarlarından alın; `<...>` alanlarını gerçek değerlerle değiştirin. Gerçek veritabanı şifresini veya JWT sırrını kaynak koduna, `appsettings.json` dosyasına ya da GitHub'a eklemeyin. Başlatma tamamlandığında terminalde gösterilen `/swagger` adresini açın. API uçları, istek biçimleri ve güvenlik ayrıntıları için [`docs/backend.md`](docs/backend.md) dosyasına bakın.
 
 ---
