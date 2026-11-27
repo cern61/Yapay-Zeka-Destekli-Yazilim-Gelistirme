@@ -32,6 +32,7 @@ kişiselleştirilmiş bir zaman tünelinde içerik görebildiği bir Twitter klo
 | Veritabanı | Supabase PostgreSQL |
 | ORM / PostgreSQL sürücüsü | EF Core / Npgsql |
 | Kimlik doğrulama | JWT |
+| Test | xUnit, ASP.NET Core WebApplicationFactory, SQLite (bellek içi test veritabanı) |
 | Kod kalitesi | SonarQube |
 | Versiyon kontrol | Git & GitHub |
 | Mimari| Asp.Net |
@@ -189,3 +190,24 @@ dotnet run --project Backend\Backend.csproj
 Bağlantı değerlerini Supabase **Session pooler** ayarlarından alın; `<...>` alanlarını gerçek değerlerle değiştirin. Gerçek veritabanı şifresini veya JWT sırrını kaynak koduna, `appsettings.json` dosyasına ya da GitHub'a eklemeyin. Başlatma tamamlandığında terminalde gösterilen `/swagger` adresini açın. API uçları, istek biçimleri ve güvenlik ayrıntıları için [`docs/backend.md`](docs/backend.md) dosyasına bakın.
 
 ---
+
+## 🧪 Test
+
+Backend testleri `Backend.Tests` projesindedir (xUnit). Testler uygulamayı bellekte ayağa kaldırır ve API'ye gerçek HTTP istekleri gönderir. **Ortak Supabase veritabanına hiç bağlanmaz:** veritabanı gerektiren testler her çalıştırmada bellekte boş bir SQLite veritabanı açar ve test bitince siler. Bu yüzden testler için bağlantı dizesi, JWT sırrı veya internet bağlantısı gerekmez.
+
+Depo kök klasöründen:
+
+```bash
+dotnet test Backend.Tests
+```
+
+| Test grubu | Ne doğrulanır |
+|------------|---------------|
+| Servis birim testleri | Cursor kodlama/çözme, sayfalama filtresi, JWT içeriği ve imzası |
+| Yetki kontrolü | Giriş gerektiren tüm uçlar token olmadan, sahte veya süresi dolmuş token ile `401` döner |
+| Girdi doğrulama | Tweet (1-280), mesaj (1-1000), profil alanları ve URL'ler; emojiler tek karakter sayılır |
+| Kayıt ve giriş akışı | Başarılı kayıt/giriş, tekrarlanan kullanıcı adı/e-posta, BCrypt ile saklanan şifre |
+| Hatalı istekler | Bozuk cursor `400`, geçersiz id biçimi `404` döner; sunucu çökmez |
+
+Test dosyaları, kapsanan senaryolar ve bilinen eksikler için [`docs/test.md`](docs/test.md) dosyasına bakın.
+
